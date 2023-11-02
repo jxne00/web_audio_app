@@ -10,6 +10,33 @@
       padding: 0;
       margin: 0;
     }
+
+    .mySliders {
+      background-color: transparent;
+      -webkit-appearance: none;
+      border: 1px solid #000000;
+      cursor: pointer;
+    }
+
+    .mySliders:focus {
+      outline: none;
+    }
+
+    .mySliders::-webkit-slider-runnable-track {
+      background: #ffffff;
+      height: 10px;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    .mySliders::-webkit-slider-thumb {
+      width: 14px;
+      height: 23px;
+      background: #000000;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -6px;
+    }
   </style>
   <script src="libraries/p5.js"></script>
   <script src="libraries/p5.sound.js"></script>
