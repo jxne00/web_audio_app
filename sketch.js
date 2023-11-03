@@ -52,6 +52,11 @@ var wd_outputSlider;
 var fftIn;
 var fftOut;
 
+// mic & recorder
+var mic;
+var recorder;
+var recordedAudioFile;
+
 function preload() {
   soundFormats('mp3', 'wav');
   audioFile = loadSound('assets/animal_crossing_lofi.mp3');
@@ -59,24 +64,37 @@ function preload() {
 
 function setup() {
   createCanvas(750, 800);
-  // background('#8eb8d0');
   background(255);
 
+  // initialize audio effects
+  lp_filter = new p5.LowPass();
+  waveshaperDistort = new p5.Distortion();
+  dynamicCompressor = new p5.Compressor();
+  reverb = new p5.Reverb();
+  // masterVol = new p5.Gain();
+
+  mic = new p5.AudioIn();
+  recorder = new p5.SoundRecorder();
+  recordedAudioFile = new p5.SoundFile();
+
+  fftIn = new p5.FFT(0.2, 2048);
+  fftOut = new p5.FFT(0.2, 2048);
+
+  // setup audio chain
+  // (audioFile -> lowpass -> waveshaperDistort -> dynamicCompressor -> reverb -> masterVol -> output)
+  audioFile.disconnect();
+  // lowpass -> waveshaperDistort -> dynamicCompressor -> reverb
+  let audioChain = lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
+  audioFile.connect(audioChain);
+
+  recorder.setInput(lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb));
+
   setupGUI();
-
-  //   fftIn = new p5.FFT();
-  //   fftOut = new p5.FFT();
-
-  setupAudioChain();
-
-  //   fftIn.setInput(audioFile);
-  //   fftOut.setInput(masterVol);
 }
 
 function draw() {
-  // audioFile.setVolume(mv_volumeSlider.value());
-
   // drawEffects();
+  audioFile.setVolume(mv_volumeSlider.value());
 
   // set button colors based on active/not active
   setButtonStyle(playButton, audioFile.isPlaying(), '#008000');
@@ -93,12 +111,7 @@ function setupGUI() {
   pauseButton = setupButton('pause', posX, posY, pauseAudio);
   playButton = setupButton('play', (posX += 70), posY, playAudio);
   stopButton = setupButton('stop', (posX += 70), posY, stopAudio);
-  skipStartButton = setupButton(
-    'skip to start',
-    (posX += 70),
-    posY,
-    restartAudio
-  );
+  skipStartButton = setupButton('skip to start', (posX += 70), posY, restartAudio);
   skipEndButton = setupButton('skip to end', (posX += 70), posY, toAudioEnd);
   loopButton = setupButton('loop', (posX += 70), posY, loopAudio);
   recordButton = setupButton('record', (posX += 70), posY, recordSound);
@@ -106,15 +119,7 @@ function setupGUI() {
   //  ========= LOW-PASS FILTER CONTROLS ========= //
   drawBox(15, 90, 190, 300, 'low-pass filter');
 
-  lp_cutOffSlider = drawKnob(
-    60,
-    180,
-    50,
-    20,
-    20000,
-    10000,
-    'cutoff\nfrequency'
-  );
+  lp_cutOffSlider = drawKnob(60, 180, 50, 20, 20000, 10000, 'cutoff\nfrequency');
   lp_resonanceSlider = drawKnob(150, 180, 50, 0, 20, 3, 'resonance');
 
   lp_dryWetSlider = drawSlider(0, 300, 120, 0, 1, 0.5, 'dry/wet');
@@ -217,7 +222,7 @@ function drawKnob(posX, posY, diameter, minVal, maxVal, value, label) {
 
   // draw 'knob
   fill(255);
-  circle(posX, posY, diameter);
+  let knob = circle(posX, posY, diameter);
 
   // knob label
   push();
@@ -228,16 +233,14 @@ function drawKnob(posX, posY, diameter, minVal, maxVal, value, label) {
   textAlign(CENTER, BOTTOM);
   text(label, posX, posY - diameter / 2 - 5);
   pop();
+
+  return knob;
 }
 
 function drawSlider(posX, posY, width, minVal, maxVal, value, label) {
-  // TODO draw slider
-
-  // rect(posX + width / 2 - 15, posY - width / 2, 30, width + 10);
-
-  var slider = createSlider(minVal, maxVal, value, 0.01);
+  let slider = createSlider(minVal, maxVal, value, 0.01);
   slider.position(posX, posY);
-  slider.style('transform', 'rotate(90deg)');
+  slider.style('transform', 'rotate(-90deg)');
 
   slider.style('width', width + 'px');
   slider.addClass('mySliders');
@@ -250,6 +253,8 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, label) {
   textAlign(CENTER, BOTTOM);
   text(label, posX + width / 2, posY - width / 2 - 3);
   pop();
+
+  return slider;
 }
 
 // play
@@ -304,20 +309,6 @@ function recordSound() {
 
 function lowPassFilter() {
   // TODO low pass filter
-}
-
-function setupAudioChain() {
-  // initialize audio elements
-  lp_filter = new p5.LowPass();
-  waveshaperDistort = new p5.Distortion();
-  dynamicCompressor = new p5.Compressor();
-  reverb = new p5.Reverb();
-  masterVol = new p5.Gain();
-
-  // chain (audioFile -> lowpass -> waveshaperDistort -> dynamicCompressor -> reverb -> masterVol -> output)
-  audioFile.disconnect();
-  audioFile.connect(lp_filter);
-  lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb, masterVol);
 }
 
 function drawEffects() {
