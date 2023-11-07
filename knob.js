@@ -15,8 +15,8 @@ class Knob {
     this.radius = radius;
     this.minVal = minVal;
     this.maxVal = maxVal;
-    this.value = value;
-    this.angle = this.valueToAngle(value);
+    this.value = constrain(value, this.minVal, this.maxVal);
+    this.angle = this.valueToAngle(this.value);
     this.dragging = false;
     this.offsetAngle = 0;
     this.label = label;
@@ -59,7 +59,13 @@ class Knob {
     noStroke();
     textAlign(CENTER, CENTER);
     textSize(10);
-    text(int(this.value), this.posX, this.posY + 10);
+
+    let valueText =
+      this.value < 10 && this.value > 0.1
+        ? this.value.toFixed(1)
+        : this.value.toFixed(0);
+
+    text(valueText, this.posX, this.posY + 10);
     pop();
 
     // draw label above knob

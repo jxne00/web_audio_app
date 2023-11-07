@@ -7,8 +7,8 @@ let loopButton;
 let recordButton;
 
 // low-pass filter
-let lp_filter;
 let filterSelection;
+let lp_filter;
 let lp_cutoff_knob, lp_resonance_knob;
 let lp_dryWetSlider, lp_outputSlider;
 
@@ -18,6 +18,7 @@ let dc_attack_knob, dc_knee_knob, dc_release_knob, dc_ratio_knob, dc_threshold_k
 let dc_dryWetSlider, dc_outputSlider;
 
 // master volume
+let masterVol;
 let mv_volumeSlider;
 
 // reverb
@@ -63,6 +64,7 @@ function draw() {
   setButtonStyle(rv_reverseButton, reverbReversed, '#008000');
 
   drawKnobs();
+
   setEffectParams();
   drawSpectrums();
 }
@@ -94,6 +96,8 @@ function setupGUI() {
   filterSelection.option('lowpass');
   filterSelection.option('highpass');
   filterSelection.option('bandpass');
+  filterSelection.selected('lowpass');
+  filterSelection.changed(() => lp_filter.setType(filterSelection.value()));
 
   // ========== DYNAMIC COMPRESSOR CONTROLS ========== //
   drawBox(230, 90, 250, 400, 'dynamic compressor');
@@ -116,7 +120,7 @@ function setupGUI() {
   drawBox(15, 410, 190, 370, 'reverb');
 
   rv_duration_knob = new Knob(60, 500, 25, 0, 10, 3, 'duration');
-  rv_decay_knob = new Knob(150, 500, 25, 0, 10, 2, 'decay');
+  rv_decay_knob = new Knob(150, 500, 25, 0, 100, 2, 'decay');
 
   rv_reverseButton = setupButton('reverse', 30, 550, reverbReverse);
 
@@ -195,7 +199,6 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
   let slider = createSlider(minVal, maxVal, value, step);
   slider.position(posX, posY);
   slider.style('transform', 'rotate(-90deg)');
-
   slider.style('width', width + 'px');
   slider.addClass('mySliders');
 
@@ -214,10 +217,11 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
 /** function to initialise audio effects and connect audio chain  */
 function setupEffects() {
   // initialize audio effects
-  lp_filter = new p5.Filter(filterSelection.value());
+  lp_filter = new p5.Filter('lowpass');
   waveshaperDistort = new p5.Distortion();
   dynamicCompressor = new p5.Compressor();
   reverb = new p5.Reverb();
+  masterVol = new p5.Gain();
 
   // initialize spectrums
   fftIn = new p5.FFT();
@@ -233,19 +237,40 @@ function setupEffects() {
 
   // create audio chain:
   //  audio -> lowpass -> distortion -> compressor -> reverb -> master volume
-  let audioChain = lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
-  audioFile.connect(audioChain);
-  fftOut.setInput(audioChain);
+  // audioFile.connect(lp_filter);
+  // let audioChain = lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
+  // fftOut.setInput(audioChain);
+
+  audioFile.connect(lp_filter);
+  lp_filter.connect(waveshaperDistort);
+  waveshaperDistort.connect(dynamicCompressor);
+  dynamicCompressor.connect(reverb);
+  reverb.connect();
+
+  fftOut.setInput(lp_filter);
+
   // recorder.setInput(mic);
+  // mic.start();
 }
 
 /** function to set parameters for each effect */
 function setEffectParams() {
   // low-pass filter
   lp_filter.setType(filterSelection.value());
-  lp_filter.set(lp_cutoff_knob.getValue(), lp_resonance_knob.getValue());
+  lp_filter.freq(lp_cutoff_knob.getValue());
+  lp_filter.res(lp_resonance_knob.getValue());
+  // lp_filter.set(lp_cutoff_knob.getValue(), lp_resonance_knob.getValue());
   lp_filter.drywet(lp_dryWetSlider.value());
   lp_filter.amp(lp_outputSlider.value());
+
+  // waveshaper distortion
+  let oversample = ['none', '2x', '4x', '8x'];
+  waveshaperDistort.set(
+    wd_amount_knob.getValue(),
+    oversample[wd_oversample_knob.getValue()]
+  );
+  waveshaperDistort.drywet(wd_dryWetSlider.value());
+  waveshaperDistort.amp(wd_outputSlider.value());
 
   // dynamic compressor
   dynamicCompressor.set(
@@ -259,18 +284,9 @@ function setEffectParams() {
   dynamicCompressor.amp(dc_outputSlider.value());
 
   // reverb
-  reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), reverbReversed);
+  // reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue());
   reverb.drywet(rv_dryWetSlider.value());
   reverb.amp(rv_outputSlider.value());
-
-  // waveshaper distortion
-  let oversample = ['none', '2x', '4x', '8x'];
-  waveshaperDistort.set(
-    wd_amount_knob.getValue(),
-    oversample[wd_oversample_knob.getValue()]
-  );
-  waveshaperDistort.drywet(wd_dryWetSlider.value());
-  waveshaperDistort.amp(wd_outputSlider.value());
 
   // master volume
   audioFile.setVolume(mv_volumeSlider.value());
@@ -349,13 +365,14 @@ function recordSound() {
     isRecording = true;
   } else {
     recorder.stop();
-    recordedFile.save('recorded.wav');
+    recordedFile.save('recording.wav');
     isRecording = false;
   }
 }
 
 function reverbReverse() {
   reverbReversed = !reverbReversed;
+  reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), reverbReversed);
 
   if (reverbReversed) {
     rv_reverseButton.style('background-color', '#008000');
