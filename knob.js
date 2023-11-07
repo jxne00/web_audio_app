@@ -1,5 +1,14 @@
 /** A class to create a knob */
 class Knob {
+  /**
+   * @param {number} posX - x-position of knob
+   * @param {number} posY - y-position of knob
+   * @param {number} radius - radius
+   * @param {number} minVal - minimum value
+   * @param {number} maxVal - maximum value
+   * @param {number} value - initial value
+   * @param {string} label - label to show above knob
+   */
   constructor(posX, posY, radius, minVal, maxVal, value, label) {
     this.posX = posX;
     this.posY = posY;
@@ -40,7 +49,8 @@ class Knob {
     translate(this.posX, this.posY);
     rotate(this.angle);
     circle(0, 0, this.radius * 2);
-    line(0, 0, this.radius, 0);
+    strokeWeight(3);
+    line(15, 0, this.radius - 1, 0);
     pop();
 
     // draw knob value

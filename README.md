@@ -17,3 +17,12 @@
 - [ ] Allow the user to select between the live microphone input and the pre-recorded audio file as the audio source for the application.
 
 - [ ] Configure a delay audio effect and add this to the audio chain before the dynamic compressor.
+
+
+## Filter params
+
+- Low-Pass: https://p5js.org/reference/#/p5.Filter
+- Dynamic Compressor: https://p5js.org/reference/#/p5.Compressor/set
+- Waveshaper Distortion: https://p5js.org/reference/#/p5.Distortion
+- Reverb: https://p5js.org/reference/#/p5.Reverb, https://p5js.org/reference/#/p5.Reverb/set
+- Drywet: https://p5js.org/reference/#/p5.Effect/drywet
