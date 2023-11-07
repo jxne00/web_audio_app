@@ -1,112 +1,75 @@
-var audioFile;
+let audioFile;
 
 // playback controls
-var pauseButton;
-var playButton;
-var stopButton;
-var skipStartButton;
-var skipEndButton;
-var loopButton;
-var recordButton;
+let pauseButton, playButton, stopButton;
+let skipStartButton, skipEndButton;
+let loopButton;
+let recordButton;
 
 // low-pass filter
-var lp_filter;
-var lp_cutOffSlider;
-var lp_resonanceSlider;
-var lp_dryWetSlider;
-var lp_outputSlider;
-
-var lp_cutoff_knob;
-var lp_resonance_knob;
+let lp_filter;
+let lp_cutoff_knob, lp_resonance_knob;
+let lp_dryWetSlider, lp_outputSlider;
 
 // dynamic compressor
-var dynamicCompressor;
-var dc_attackSlider;
-var dc_kneeSlider;
-var dc_releaseSlider;
-var dc_ratioSlider;
-var dc_thresholdSlider;
-var dc_dryWetSlider;
-var dc_outputSlider;
+let dynamicCompressor;
+let dc_attack_knob, dc_knee_knob, dc_release_knob, dc_ratio_knob, dc_threshold_knob;
+let dc_dryWetSlider, dc_outputSlider;
 
 // master volume
-var masterVol;
-var mv_volumeSlider;
+let masterVol;
+let mv_volumeSlider;
 
 // reverb
-var reverb;
-var rv_durationSlider;
-var rv_decaySlider;
-var rv_dryWetSlider;
-var rv_outputSlider;
-var rv_reverseButton;
+let reverb;
+let rv_duration_knob, rv_decay_knob;
+let rv_dryWetSlider;
+let rv_outputSlider;
+let rv_reverseButton;
+let state = 0;
 
 // waveshaper distortion
-var waveshaperDistort;
-var wd_amountSlider;
-var wd_oversampleSlider;
-var wd_dryWetSlider;
-var wd_outputSlider;
+let waveshaperDistort;
+let wd_amount_knob, wd_oversample_knob;
+let wd_dryWetSlider, wd_outputSlider;
 
 // spectrum
-var fftIn;
-var fftOut;
+let fftIn, fftOut;
 
 // mic & recorder
-var mic;
-var recorder;
-var recordedAudioFile;
+let mic;
+let recorder;
+let recordedFile;
+let isRecording = false;
 
 function preload() {
-  soundFormats('mp3', 'wav');
-  audioFile = loadSound('assets/animal_crossing_lofi.mp3');
+  audioFile = loadSound('/assets/animal_crossing_lofi.mp3');
 }
 
 function setup() {
   createCanvas(750, 800);
   background(255);
 
-  // initialize audio effects
-  lp_filter = new p5.LowPass();
-  waveshaperDistort = new p5.Distortion();
-  dynamicCompressor = new p5.Compressor();
-  reverb = new p5.Reverb();
-  // masterVol = new p5.Gain();
-
-  mic = new p5.AudioIn();
-  recorder = new p5.SoundRecorder();
-  recordedAudioFile = new p5.SoundFile();
-
-  fftIn = new p5.FFT(0.2, 2048);
-  fftOut = new p5.FFT(0.2, 2048);
-
-  // setup audio chain
-  // (audioFile -> lowpass -> waveshaperDistort -> dynamicCompressor -> reverb -> masterVol -> output)
-  audioFile.disconnect();
-  // lowpass -> waveshaperDistort -> dynamicCompressor -> reverb
-  let audioChain = lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
-  audioFile.connect(audioChain);
-
-  recorder.setInput(lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb));
-
   setupGUI();
+  setupEffects();
 }
 
 function draw() {
-  // drawEffects();
-  audioFile.setVolume(mv_volumeSlider.value());
+  // draw knobs
+  drawKnobs();
 
   // set button colors based on active/not active
   setButtonStyle(playButton, audioFile.isPlaying(), '#008000');
   setButtonStyle(loopButton, audioFile.isLooping(), '#8000ff');
   setButtonStyle(pauseButton, audioFile.isPaused(), '#ff8000');
+  setButtonStyle(recordButton, isRecording, '#cc1b1b');
 }
 
 // setup the buttons and sliders
 function setupGUI() {
   // ========== PLAYBACK CONTROL BUTTONS ========== //
-  var posX = 20;
-  var posY = 20;
+  let posX = 20,
+    posY = 20;
 
   pauseButton = setupButton('pause', posX, posY, pauseAudio);
   playButton = setupButton('play', (posX += 70), posY, playAudio);
@@ -119,60 +82,54 @@ function setupGUI() {
   //  ========= LOW-PASS FILTER CONTROLS ========= //
   drawBox(15, 90, 190, 300, 'low-pass filter');
 
-  lp_cutOffSlider = drawKnob(60, 180, 50, 20, 20000, 10000, 'cutoff\nfrequency');
-  lp_resonanceSlider = drawKnob(150, 180, 50, 0, 20, 3, 'resonance');
+  lp_cutoff_knob = new Knob(60, 180, 25, 20, 20000, 1000, 'cutoff\nfrequency');
+  lp_resonance_knob = new Knob(150, 180, 25, 0, 20, 0.5, 'resonance');
 
-  lp_dryWetSlider = drawSlider(0, 300, 120, 0, 1, 0.5, 'dry/wet');
-  lp_outputSlider = drawSlider(90, 300, 120, 0, 1, 0.5, 'output\nlevel');
+  lp_dryWetSlider = drawSlider(0, 300, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  lp_outputSlider = drawSlider(90, 300, 120, 0, 1, 0.75, 0.01, 'output\nlevel');
 
   // ========== DYNAMIC COMPRESSOR CONTROLS ========== //
   drawBox(230, 90, 250, 400, 'dynamic compressor');
 
-  dc_attackSlider = drawKnob(270, 180, 50, 0, 1, 0.3, 'attack');
-  dc_kneeSlider = drawKnob(350, 180, 50, 0, 40, 30, 'knee');
-  dc_releaseSlider = drawKnob(430, 180, 50, 0, 1, 0.3, 'release');
-  dc_ratioSlider = drawKnob(310, 260, 50, 1, 20, 12, 'ratio');
-  dc_thresholdSlider = drawKnob(390, 260, 50, -100, 0, -24, 'threshold');
+  dc_attack_knob = new Knob(270, 180, 25, 0, 1, 0.03, 'attack');
+  dc_knee_knob = new Knob(350, 180, 25, 0, 40, 30, 'knee');
+  dc_release_knob = new Knob(430, 180, 25, 0.01, 1, 0.25, 'release');
+  dc_ratio_knob = new Knob(310, 260, 25, 1, 20, 4, 'ratio');
+  dc_threshold_knob = new Knob(390, 260, 25, -60, 0, -24, 'threshold');
 
-  dc_dryWetSlider = drawSlider(250, 390, 120, 0, 1, 1, 'dry/wet');
-  dc_outputSlider = drawSlider(330, 390, 120, 0, 1, 0.5, 'output\nlevel');
+  dc_dryWetSlider = drawSlider(250, 390, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  dc_outputSlider = drawSlider(330, 390, 120, 0, 1, 0.75, 0.01, 'output\nlevel');
 
   // ============= MASTER VOLUME ============= //
   drawBox(500, 90, 150, 200, 'master\nvolume');
-  mv_volumeSlider = drawSlider(510, 200, 120, 0, 1, 0.5, '');
+
+  mv_volumeSlider = drawSlider(510, 200, 120, 0, 1, 0.5, 0.1, ' ');
 
   // ================ REVERB CONTROLS ================ //
   drawBox(15, 410, 190, 370, 'reverb');
 
-  rv_durationSlider = drawKnob(60, 500, 50, 0.1, 10, 3, 'duration');
-  rv_decaySlider = drawKnob(150, 500, 50, 0, 5, 2, 'decay');
+  rv_duration_knob = new Knob(60, 500, 25, 0, 10, 2, 'duration');
+  rv_decay_knob = new Knob(150, 500, 25, 0, 10, 2, 'decay');
 
-  rv_reverseButton = setupButton('reverse', 30, 550, function () {
-    // TODO reverse reverb
-    if (reverb._reverse) {
-      reverb._reverse = false;
-    } else {
-      reverb._reverse = true;
-    }
-  });
+  rv_reverseButton = setupButton('reverse', 30, 550, reverbReverse);
 
-  rv_dryWetSlider = drawSlider(10, 690, 100, 0, 1, 0.5, 'dry/wet');
-  rv_outputSlider = drawSlider(100, 690, 100, 0, 1, 0.5, 'output\nlevel');
+  rv_dryWetSlider = drawSlider(10, 690, 100, 0, 1, 0.5, 0.01, 'dry/wet');
+  rv_outputSlider = drawSlider(100, 690, 100, 0, 1, 0.75, 0.01, 'output\nlevel');
 
   // ======== WAVESHAPER DISTORTION CONTROLS ======== //
   drawBox(230, 500, 220, 280, 'waveshaper distortion');
 
-  wd_amountSlider = drawKnob(300, 590, 50, 0, 1, 0.5, 'distortion\namount');
-  wd_oversampleSlider = drawKnob(390, 590, 50, 0, 1, 0.5, 'oversample');
+  wd_amount_knob = new Knob(300, 590, 25, 0, 1, 0.2, 'distortion\namount');
+  wd_oversample_knob = new Knob(390, 590, 25, 0, 4, 2, 'oversample');
 
-  wd_dryWetSlider = drawSlider(250, 700, 100, 0, 1, 0.5, 'dry/wet');
-  wd_outputSlider = drawSlider(340, 700, 100, 0, 1, 0.5, 'output\nlevel');
+  wd_dryWetSlider = drawSlider(250, 710, 100, 0, 1, 0.5, 0.01, 'dry/wet');
+  wd_outputSlider = drawSlider(340, 710, 100, 0, 1, 0.75, 0.01, 'output\nlevel');
 
   // ================ SPECTRUMS ================ //
   drawBox(470, 500, 250, 280, 'spectrum in/out');
 }
 
-// function to setup a button
+/** function to setup a button */
 function setupButton(name, posX, posY, onPress) {
   var button = createButton(name);
 
@@ -191,16 +148,14 @@ function setupButton(name, posX, posY, onPress) {
   return button;
 }
 
-// function to set different colors to active buttons
+/** function to set different colors to active buttons */
 function setButtonStyle(button, isActive, activeCol) {
-  if (activeCol === undefined) activeCol = '#ff0000';
-
   isActive
     ? button.style('background-color', activeCol)
     : button.style('background-color', '#ffffff');
 }
 
-// function to draw rectangle box with header text
+/** function to draw rectangle box with header text */
 function drawBox(posX, posY, width, height, header) {
   rect(posX, posY, width, height);
 
@@ -214,31 +169,26 @@ function drawBox(posX, posY, width, height, header) {
   pop();
 }
 
-// function to draw a knob
-function drawKnob(posX, posY, diameter, minVal, maxVal, value, label) {
-  // TODO draw knob
-  // https://editor.p5js.org/icm/sketches/HkfFHcp2
-  // https://editor.p5js.org/emmajaneculhane/sketches/ozqo5lh4j
+function drawKnobs() {
+  lp_cutoff_knob.draw();
+  lp_resonance_knob.draw();
 
-  // draw 'knob
-  fill(255);
-  let knob = circle(posX, posY, diameter);
+  dc_attack_knob.draw();
+  dc_knee_knob.draw();
+  dc_release_knob.draw();
+  dc_ratio_knob.draw();
+  dc_threshold_knob.draw();
 
-  // knob label
-  push();
-  fill(0);
-  textFont('Verdana');
-  textSize(11);
-  textLeading(13);
-  textAlign(CENTER, BOTTOM);
-  text(label, posX, posY - diameter / 2 - 5);
-  pop();
+  rv_duration_knob.draw();
+  rv_decay_knob.draw();
 
-  return knob;
+  wd_amount_knob.draw();
+  wd_oversample_knob.draw();
 }
 
-function drawSlider(posX, posY, width, minVal, maxVal, value, label) {
-  let slider = createSlider(minVal, maxVal, value, 0.01);
+/** function to draw vertical slider with label */
+function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
+  let slider = createSlider(minVal, maxVal, value, step);
   slider.position(posX, posY);
   slider.style('transform', 'rotate(-90deg)');
 
@@ -257,106 +207,111 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, label) {
   return slider;
 }
 
-// play
+function setupEffects() {
+  // initialize audio effects
+  lp_filter = new p5.LowPass();
+  waveshaperDistort = new p5.Distortion();
+  dynamicCompressor = new p5.Compressor();
+  reverb = new p5.Reverb();
+  masterVol = new p5.Gain();
+
+  // create audio chain
+  audioFile.disconnect();
+  audioFile.connect(lp_filter);
+  lp_filter.disconnect();
+  lp_filter.connect(dynamicCompressor);
+  dynamicCompressor.disconnect();
+  dynamicCompressor.connect(reverb);
+  reverb.disconnect();
+  reverb.connect(masterVol);
+  masterVol.disconnect();
+  masterVol.connect(p5.soundOut);
+
+  mic = new p5.AudioIn();
+  recorder = new p5.SoundRecorder();
+  recordedFile = new p5.SoundFile();
+}
+
 function playAudio() {
-  if (!audioFile.isPlaying()) {
-    audioFile.play();
-  }
+  if (!audioFile.isPlaying()) audioFile.play();
 }
 
-// pause
 function pauseAudio() {
-  if (audioFile.isPlaying()) {
-    audioFile.pause();
-  }
+  if (audioFile.isPlaying()) audioFile.pause();
 }
 
-// stop
 function stopAudio() {
-  if (audioFile.isPlaying()) {
-    audioFile.stop();
-  }
+  if (audioFile.isPlaying()) audioFile.stop();
 }
 
-// loop
+/** toggle loop on and off */
 function loopAudio() {
   if (audioFile.isPlaying()) {
-    if (audioFile.isLooping()) {
-      audioFile.setLoop(false);
-    } else {
-      audioFile.setLoop(true);
-    }
+    audioFile.isLooping() ? audioFile.setLoop(false) : audioFile.setLoop(true);
   }
 }
 
-// skip to start
+/** skip to start of audio */
 function restartAudio() {
   if (audioFile.isPlaying()) {
     audioFile.jump(0);
   }
 }
 
-// skip to end
+/** skip to end of audio */
 function toAudioEnd() {
   if (audioFile.isPlaying()) {
     audioFile.jump(audioFile.duration() - 3);
   }
 }
 
+// TODO record mic input and save as wav file
 function recordSound() {
-  // TODO record mic input and save as wav file
+  if (!isRecording && !audioFile.isPlaying()) {
+    recorder.record(recordedFile);
+    isRecording = true;
+  } else {
+    recorder.stop();
+    recordedFile.save('recorded.wav');
+    isRecording = false;
+  }
 }
 
-function lowPassFilter() {
-  // TODO low pass filter
+function reverbReverse() {
+  if (state === 0) {
+    reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), true);
+    state++;
+  } else if (state == 1) {
+    reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), false);
+  }
 }
 
-function drawEffects() {
-  // low-pass filter
-  lp_filter.freq(lp_cutOffSlider.value());
-  lp_filter.res(lp_resonanceSlider.value());
-  lp_filter.drywet(lp_dryWetSlider.value());
-  lp_filter.amp(lp_outputSlider.value());
+function mousePressed() {
+  // update knob angle when pressed
+  lp_cutoff_knob.mousePressed();
+  lp_resonance_knob.mousePressed();
+  dc_attack_knob.mousePressed();
+  dc_knee_knob.mousePressed();
+  dc_release_knob.mousePressed();
+  dc_ratio_knob.mousePressed();
+  dc_threshold_knob.mousePressed();
+  rv_duration_knob.mousePressed();
+  rv_decay_knob.mousePressed();
+  wd_amount_knob.mousePressed();
+  wd_oversample_knob.mousePressed();
+}
 
-  // dynamic compressor
-  dynamicCompressor.attack(dc_attackSlider.value());
-  dynamicCompressor.knee(dc_kneeSlider.value());
-  dynamicCompressor.release(dc_releaseSlider.value());
-  dynamicCompressor.ratio(dc_ratioSlider.value());
-  dynamicCompressor.threshold(dc_thresholdSlider.value());
-  dynamicCompressor.drywet(dc_dryWetSlider.value());
-  dynamicCompressor.amp(dc_outputSlider.value());
-
-  // reverb
-  //   reverb.set(rv_durationSlider.value() * 10, rv_decaySlider.value());
-  reverb.drywet(rv_dryWetSlider.value());
-  reverb.amp(rv_outputSlider.value());
-
-  // waveshaper distortion
-  waveshaperDistort.amount(wd_amountSlider.value());
-  waveshaperDistort.oversample(wd_oversampleSlider.value());
-  waveshaperDistort.drywet(wd_dryWetSlider.value());
-  waveshaperDistort.amp(wd_outputSlider.value());
-
-  // draw spectrums
-  // var spectrumIn = fftIn.analyze();
-  // var spectrumOut = fftOut.analyze();
-
-  // noStroke();
-
-  // spectrum in
-  // fill(255, 0, 0);
-  // for (let i = 0; i < spectrumIn.length; i++) {
-  //   let x = map(i, 0, spectrumIn.length, 560, width);
-  //   let h = -100 + map(spectrumIn[i], 0, 255, 100, 0);
-  //   rect(x, 260, (width - 560) / spectrumIn.length, h);
-  // }
-
-  // spectrum out
-  // fill(0, 0, 255);
-  // for (let i = 0; i < spectrumOut.length; i++) {
-  //   let x = map(i, 0, spectrumOut.length, 560, width);
-  //   let h = -100 + map(spectrumOut[i], 0, 255, 100, 0);
-  //   rect(x, 430, (width - 560) / spectrumOut.length, h);
-  // }
+function mouseReleased() {
+  // stop dragging knob when released
+  lp_cutoff_knob.mouseReleased();
+  lp_resonance_knob.mouseReleased();
+  dc_attack_knob.mouseReleased();
+  dc_knee_knob.mouseReleased();
+  dc_release_knob.mouseReleased();
+  dc_ratio_knob.mouseReleased();
+  dc_threshold_knob.mouseReleased();
+  rv_duration_knob.mouseReleased();
+  rv_decay_knob.mouseReleased();
+  wd_amount_knob.mouseReleased();
+  wd_oversample_knob.mouseReleased();
 }
