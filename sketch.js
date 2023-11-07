@@ -8,6 +8,7 @@ let recordButton;
 
 // low-pass filter
 let lp_filter;
+let filterSelection;
 let lp_cutoff_knob, lp_resonance_knob;
 let lp_dryWetSlider, lp_outputSlider;
 
@@ -87,6 +88,12 @@ function setupGUI() {
   lp_resonance_knob = new Knob(150, 180, 25, 0, 20, 10, 'resonance');
   lp_dryWetSlider = drawSlider(0, 300, 120, 0, 1, 0.5, 0.01, 'dry/wet');
   lp_outputSlider = drawSlider(90, 300, 120, 0, 1, 0.5, 0.01, 'output\nlevel');
+
+  filterSelection = createSelect();
+  filterSelection.position(30, 130);
+  filterSelection.option('lowpass');
+  filterSelection.option('highpass');
+  filterSelection.option('bandpass');
 
   // ========== DYNAMIC COMPRESSOR CONTROLS ========== //
   drawBox(230, 90, 250, 400, 'dynamic compressor');
@@ -207,7 +214,7 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
 /** function to initialise audio effects and connect audio chain  */
 function setupEffects() {
   // initialize audio effects
-  lp_filter = new p5.LowPass();
+  lp_filter = new p5.Filter(filterSelection.value());
   waveshaperDistort = new p5.Distortion();
   dynamicCompressor = new p5.Compressor();
   reverb = new p5.Reverb();
@@ -229,14 +236,14 @@ function setupEffects() {
   let audioChain = lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
   audioFile.connect(audioChain);
   fftOut.setInput(audioChain);
-  recorder.setInput(mic);
+  // recorder.setInput(mic);
 }
 
 /** function to set parameters for each effect */
 function setEffectParams() {
   // low-pass filter
-  lp_filter.freq(lp_cutoff_knob.getValue());
-  lp_filter.res(lp_resonance_knob.getValue());
+  lp_filter.setType(filterSelection.value());
+  lp_filter.set(lp_cutoff_knob.getValue(), lp_resonance_knob.getValue());
   lp_filter.drywet(lp_dryWetSlider.value());
   lp_filter.amp(lp_outputSlider.value());
 

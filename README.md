@@ -2,7 +2,7 @@
 
 **The functionality of the application should meet the following requirements:**
 
-- [ ] The application should include the playback controls and effects controls shown in Image 1.
+- [x] The application should include the playback controls and effects controls shown in Image 1.
 
 - [ ] Internally, the effects must be connected in a chain, as shown in Image 2.
 
