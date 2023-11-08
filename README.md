@@ -21,8 +21,10 @@
 
 ## Filter params
 
-- Low-Pass: https://p5js.org/reference/#/p5.Filter
+- Filter: https://p5js.org/reference/#/p5.Filter
 - Dynamic Compressor: https://p5js.org/reference/#/p5.Compressor/set
 - Waveshaper Distortion: https://p5js.org/reference/#/p5.Distortion
 - Reverb: https://p5js.org/reference/#/p5.Reverb, https://p5js.org/reference/#/p5.Reverb/set
 - Drywet: https://p5js.org/reference/#/p5.Effect/drywet
+
+- Chain: https://p5js.org/reference/#/p5.Effect/chain
