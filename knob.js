@@ -1,41 +1,71 @@
-/** A class to create a knob */
+/**
+ * A class to create a knob that can be dragged to change its value
+ * @param {number} posX - x-position of knob
+ * @param {number} posY - y-position of knob
+ * @param {number} radius - radius
+ * @param {number} minVal - minimum value
+ * @param {number} maxVal - maximum value
+ * @param {number} value - initial value
+ * @param {string} label - label to show above knob
+ */
 class Knob {
-  /**
-   * @param {number} posX - x-position of knob
-   * @param {number} posY - y-position of knob
-   * @param {number} radius - radius
-   * @param {number} minVal - minimum value
-   * @param {number} maxVal - maximum value
-   * @param {number} value - initial value
-   * @param {string} label - label to show above knob
-   */
   constructor(posX, posY, radius, minVal, maxVal, value, label) {
     this.posX = posX;
     this.posY = posY;
     this.radius = radius;
     this.minVal = minVal;
     this.maxVal = maxVal;
+    // constrain start value within min and max
     this.value = constrain(value, this.minVal, this.maxVal);
+    this.label = label;
+
     this.angle = this.valueToAngle(this.value);
     this.dragging = false;
     this.offsetAngle = 0;
-    this.label = label;
   }
 
-  // convert value to angle between -PI and PI
+  /** convert knob value to an angle relative to a circle */
   valueToAngle(value) {
     return map(value, this.minVal, this.maxVal, -PI, PI);
   }
 
-  // convert angle to value between minVal and maxVal
+  /** convert the angle back to a value */
   angleToValue(angle) {
     return map(angle, -PI, PI, this.minVal, this.maxVal);
   }
 
+  /** get the knob's current value */
+  getValue() {
+    return this.value;
+  }
+
+  /** set the knob's value when dragged */
+  mousePressed() {
+    let mouseIsOnKnob = dist(mouseX, mouseY, this.posX, this.posY) < this.radius;
+    if (!this.dragging && mouseIsOnKnob) {
+      this.dragging = true;
+
+      // calculate distance between mouse and knob center
+      let dx = mouseX - this.posX;
+      let dy = mouseY - this.posY;
+
+      // calculate angle between mouse and knob center (reference point)
+      this.offsetAngle = atan2(dy, dx) - this.angle;
+    }
+  }
+
+  /** stop dragging when mouse is released */
+  mouseReleased() {
+    if (this.dragging) {
+      this.dragging = false;
+    }
+  }
+
+  /** draw the knob */
   draw() {
     push();
-    // update angle and value when dragged
     if (this.dragging) {
+      // update angle and value when dragged
       let dx = mouseX - this.posX;
       let dy = mouseY - this.posY;
       let mouseAngle = atan2(dy, dx);
@@ -60,6 +90,7 @@ class Knob {
     textAlign(CENTER, CENTER);
     textSize(10);
 
+    // show decimal if value is between 0.1 and 10
     let valueText =
       this.value < 10 && this.value > 0.1
         ? this.value.toFixed(1)
@@ -80,21 +111,11 @@ class Knob {
     pop();
   }
 
-  getValue() {
-    return this.value;
-  }
-
-  mousePressed() {
-    // check that mouse is within knob radius
-    if (dist(mouseX, mouseY, this.posX, this.posY) < this.radius) {
-      this.dragging = true;
-      let dx = mouseX - this.posX;
-      let dy = mouseY - this.posY;
-      this.offsetAngle = atan2(dy, dx) - this.angle;
-    }
-  }
-
-  mouseReleased() {
+  /** reset to initial state */
+  reset() {
+    this.value = constrain(this.value, this.minVal, this.maxVal);
+    this.angle = this.valueToAngle(this.value);
     this.dragging = false;
+    this.offsetAngle = 0;
   }
 }
