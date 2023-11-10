@@ -102,15 +102,15 @@ class Knob {
         ? this.value.toFixed(1)
         : this.value.toFixed(0);
 
+    noStroke();
     text(valueText, this.posX, this.posY);
     pop();
 
     // draw label above knob
     push();
-    fill(0);
-    textSize(11);
+    textSize(10);
     textLeading(13);
-    noStroke();
+    textFont('Verdana');
     textAlign(CENTER, BOTTOM);
     text(this.label, this.posX, this.posY - this.radius - 10);
     pop();

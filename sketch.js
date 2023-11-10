@@ -1,5 +1,5 @@
 let audioFile;
-let audioPath = 'assets/contortyourself.mp3';
+let audioPath = 'assets/random.mp3';
 
 // playback control buttons
 let pauseButton, playButton, stopButton;
@@ -17,6 +17,7 @@ let lp_drywet_slider, lp_output_slider;
 // delay
 let delay;
 let delay_time_knob, delay_feedback_knob;
+let delay_drywet_slider, delay_output_slider;
 
 // dynamic compressor
 let dynamicCompressor;
@@ -153,57 +154,61 @@ function setupGUI() {
   //  ========= FILTER CONTROLS ========= //
   drawBox(15, 100, 190, 330, 'Filter');
 
-  lp_cutoff_knob = new Knob(60, 230, 25, 20, 20000, 20, 'cutoff\nfrequency');
-  lp_resonance_knob = new Knob(150, 230, 25, 0, 20, 10, 'resonance');
-  lp_drywet_slider = drawSlider(0, 350, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  lp_output_slider = drawSlider(90, 350, 120, 0, 1, 0.5, 0.01, 'output level');
+  lp_cutoff_knob = new Knob(60, 230, 25, 20, 20000, 20, 'Cutoff\nfrequency');
+  lp_resonance_knob = new Knob(150, 230, 25, 0, 20, 10, 'Resonance');
+  lp_drywet_slider = drawSlider(0, 350, 120, 0, 1, 0.5, 0.01, 'Dry/Wet');
+  lp_output_slider = drawSlider(90, 350, 120, 0, 1, 0.5, 0.01, 'Output Level');
 
   // ========== DYNAMIC COMPRESSOR CONTROLS ========== //
   drawBox(220, 100, 250, 400, 'Dynamic Compressor');
 
-  dc_attack_knob = new Knob(260, 190, 25, 0, 1, 0.003, 'attack');
-  dc_knee_knob = new Knob(340, 190, 25, 0, 40, 30, 'knee');
-  dc_release_knob = new Knob(420, 190, 25, 0.01, 1, 0.25, 'release');
-  dc_ratio_knob = new Knob(300, 270, 25, 1, 20, 12, 'ratio');
-  dc_threshold_knob = new Knob(390, 270, 25, -100, 0, -24, 'threshold');
-  dc_drywet_slider = drawSlider(240, 400, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  dc_output_slider = drawSlider(330, 400, 120, 0, 1, 0.5, 0.01, 'output level');
+  dc_attack_knob = new Knob(260, 190, 25, 0, 1, 0.003, 'Attack');
+  dc_knee_knob = new Knob(340, 190, 25, 0, 40, 30, 'Knee');
+  dc_release_knob = new Knob(420, 190, 25, 0.01, 1, 0.25, 'Release');
+  dc_ratio_knob = new Knob(300, 270, 25, 1, 20, 12, 'Ratio');
+  dc_threshold_knob = new Knob(390, 270, 25, -100, 0, -24, 'Threshold');
+  dc_drywet_slider = drawSlider(240, 400, 120, 0, 1, 0.5, 0.01, 'Dry/Wet');
+  dc_output_slider = drawSlider(330, 400, 120, 0, 1, 0.5, 0.01, 'Output Level');
 
   // ============= MASTER VOLUME ============= //
-  drawBox(500, 100, 150, 240, 'Master Volume');
+  drawBox(500, 100, 150, 220, 'Master Volume');
 
-  masterVol_slider = drawSlider(490, 230, 170, 0, 1, 0.5, 0.1, ' ');
+  masterVol_slider = drawSlider(490, 220, 160, 0, 1, 0.5, 0.1, ' ');
 
   // ============= DELAY ============= //
-  drawBox(480, 360, 220, 140, 'Delay');
+  drawBox(480, 330, 250, 180, 'Delay');
 
-  delay_time_knob = new Knob(540, 450, 25, 0, 1, 0, 'time');
-  delay_feedback_knob = new Knob(640, 450, 25, 0, 0.9, 0.5, 'feedback');
+  delay_drywet_slider = drawSlider(450, 435, 110, 0, 1, 0.5, 0.01, 'Dry/Wet');
+
+  delay_time_knob = new Knob(570, 440, 25, 0, 1, 0, 'Time');
+  delay_feedback_knob = new Knob(640, 440, 25, 0, 0.9, 0.5, 'Feedback');
+
+  delay_output_slider = drawSlider(645, 435, 110, 0, 1, 0.5, 0.01, 'Output lvl');
 
   // ================ REVERB CONTROLS ================ //
   drawBox(15, 440, 190, 370, 'Reverb');
 
-  rv_duration_knob = new Knob(60, 530, 25, 0, 10, 3, 'duration');
-  rv_decay_knob = new Knob(150, 530, 25, 0, 100, 2, 'decay');
+  rv_duration_knob = new Knob(60, 530, 25, 0, 10, 3, 'Duration');
+  rv_decay_knob = new Knob(150, 530, 25, 0, 100, 2, 'Decay');
 
-  rv_reverseButton = setupButton('reverse', 30, 580, toggleReverse);
+  rv_reverseButton = setupButton('Reverse', 30, 580, toggleReverse);
   rv_reverseButton.size(150, 35);
   rv_reverseButton.style('border', '1px solid #000000');
 
-  rv_drywet_slider = drawSlider(0, 710, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  rv_output_slider = drawSlider(90, 710, 120, 0, 1, 0.5, 0.01, 'output level');
+  rv_drywet_slider = drawSlider(0, 710, 120, 0, 1, 0.5, 0.01, 'Dry/Wet');
+  rv_output_slider = drawSlider(90, 710, 120, 0, 1, 0.5, 0.01, 'Output Level');
 
   // ======== WAVESHAPER DISTORTION CONTROLS ======== //
   drawBox(220, 510, 220, 300, 'Waveshaper Distortion');
 
-  wd_amount_knob = new Knob(280, 610, 25, 0, 1, 0, 'distortion\namount');
-  wd_oversample_knob = new Knob(380, 610, 25, 0, 3, 0, 'oversample');
-  wd_drywet_slider = drawSlider(220, 720, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  wd_outputSlider = drawSlider(320, 720, 120, 0, 1, 0.5, 0.01, 'output level');
+  wd_amount_knob = new Knob(280, 610, 25, 0, 1, 0, 'Distortion\namount');
+  wd_oversample_knob = new Knob(380, 610, 25, 0, 3, 0, 'Oversample');
+  wd_drywet_slider = drawSlider(220, 720, 120, 0, 1, 0.5, 0.01, 'Dry/Wet');
+  wd_outputSlider = drawSlider(320, 720, 120, 0, 1, 0.5, 0.01, 'Output Level');
 
   // ================ SPECTRUM BOXES ================ //
-  drawBox(460, 520, 250, 140, 'Spectrum in');
-  drawBox(460, 670, 250, 140, 'Spectrum out');
+  drawBox(460, 520, 270, 140, 'Spectrum in');
+  drawBox(460, 670, 270, 140, 'Spectrum out');
 
   // add created knobs to array
   knobs.push(
@@ -249,11 +254,13 @@ function drawBox(posX, posY, width, height, header) {
   fill(234, 222, 252);
   strokeWeight(2);
   stroke(166, 151, 189);
-  rect(posX, posY, width, height, 10);
 
   if (!header.includes('Spectrum')) {
+    rect(posX, posY, width, height, 10);
     fill(217, 200, 247);
     rect(posX, posY, width, 30, 10, 10, 0, 0);
+  } else {
+    rect(posX, posY, width, height);
   }
 
   noStroke();
@@ -274,11 +281,11 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
 
   push();
   fill(0);
-  textSize(11);
+  textSize(10);
   textLeading(13);
   textFont('Verdana');
   textAlign(CENTER, BOTTOM);
-  text(label, posX + width / 2, posY - width / 2 - 3);
+  text(label, posX + width / 2, posY - width / 2);
   pop();
 
   return slider;
@@ -303,6 +310,8 @@ function setEffectParams() {
   // delay
   delay.delayTime(delay_time_knob.getValue());
   delay.feedback(delay_feedback_knob.getValue());
+  delay.drywet(delay_drywet_slider.value());
+  delay.amp(delay_output_slider.value());
 
   // dynamic compressor
   dynamicCompressor.set(
@@ -354,7 +363,7 @@ function drawPlaytime() {
 /** function to draw spectrums in and out */
 function drawSpectrums() {
   // dimensions of spectrum's container
-  let boxWidth = 250,
+  let boxWidth = 270,
     boxHeight = 140,
     boxPosX = 460;
 
@@ -460,6 +469,7 @@ function toggleRecord() {
 /** Toggle mic on and off */
 function toggleMic() {
   if (!mic.enabled) {
+    // stop audio file first
     if (audioFile.isPlaying() || audioFile.isPaused()) audioFile.stop();
 
     // start mic and use it as input
