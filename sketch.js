@@ -106,9 +106,9 @@ function setup() {
 
 function draw() {
   // set button colors based on active/not active
-  setButtonStyle(playButton, audioFile.isPlaying(), '#008000');
-  setButtonStyle(loopButton, audioFile.isLooping(), '#8000ff');
-  setButtonStyle(pauseButton, audioFile.isPaused(), '#ff8000');
+  setButtonStyle(playButton, audioFile.isPlaying(), '#7ecc7e');
+  setButtonStyle(loopButton, audioFile.isLooping(), '#8bb3e0');
+  setButtonStyle(pauseButton, audioFile.isPaused(), '#d1aa6f');
 
   // update playtime
   drawPlaytime();
@@ -375,7 +375,7 @@ function drawSpectrums() {
   // spectrum in
   push();
   translate(boxPosX, 520);
-  fill(36, 36, 36);
+  fill(16, 137, 224);
   noStroke();
   for (let i = 0; i < spectrumIn.length; i++) {
     let x = map(i, 0, spectrumIn.length, 0, boxWidth);
@@ -389,7 +389,7 @@ function drawSpectrums() {
   // spectrum out
   push();
   translate(boxPosX, 670);
-  fill(139, 12, 177);
+  fill(224, 16, 47);
   noStroke();
   for (let i = 0; i < spectrumOut.length; i++) {
     let x = map(i, 0, spectrumOut.length, 0, boxWidth);
