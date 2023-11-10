@@ -3,36 +3,56 @@ body {
   margin: 0;
 }
 
-.mySliders {
+.button {
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #000000;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.2);
+}
+
+
+/* slider styling */
+.slider {
   background-color: transparent;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
   border: 1px solid #000000;
   cursor: pointer;
+  transform: rotate(-90deg);
 }
 
-.mySliders:focus {
+.slider:focus {
   outline: none;
 }
 
-.mySliders::-webkit-slider-runnable-track {
+.slider::-webkit-slider-runnable-track {
   background: #ffffff;
   height: 10px;
   -webkit-appearance: none;
   cursor: pointer;
 }
 
-.mySliders::-webkit-slider-thumb {
+.slider::-webkit-slider-thumb {
   width: 14px;
   height: 23px;
   background: #000000;
   cursor: pointer;
   -webkit-appearance: none;
   margin-top: -6px;
+  transition: background 0.3s ease;
 }
 
+.slider::-webkit-slider-thumb:hover {
+  background: #3b3636;
+}
 
+/* playback slider styling */
 .playback {
   background-color: transparent;
   appearance: none;
@@ -41,10 +61,6 @@ body {
   border: 1px solid #000000;
   cursor: pointer;
   width: 650px;
-}
-
-.playback:focus {
-  outline: none;
 }
 
 .playback::-webkit-slider-runnable-track {
@@ -60,4 +76,12 @@ body {
   background: #4b4747;
   cursor: pointer;
   -webkit-appearance: none;
+}
+
+.filterDropdown{
+  background-color: #a082a0;
+  color: #f9f9f9;
+  border: #d2bdf5 1px solid;
+  border-radius: 6px;
+  padding: 3px 10px;
 }

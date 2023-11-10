@@ -1,11 +1,12 @@
 let audioFile;
 let audioPath = 'assets/contortyourself.mp3';
 
-// playback controls
+// playback control buttons
 let pauseButton, playButton, stopButton;
 let skipStartButton, skipEndButton;
 let loopButton;
 let recordButton;
+let micButton;
 
 // low-pass filter
 let filterSelection;
@@ -57,10 +58,49 @@ function preload() {
 
 function setup() {
   createCanvas(750, 820);
-  background(222, 222, 222);
+  background(195, 202, 224);
 
   setupGUI();
-  setupAudioChain();
+
+  // initialize audio effects
+  lp_filter = new p5.Filter('lowpass');
+  waveshaperDistort = new p5.Distortion();
+  dynamicCompressor = new p5.Compressor();
+  reverb = new p5.Reverb();
+  masterVol = new p5.Gain();
+  delay = new p5.Delay();
+
+  // initialize spectrums
+  fftIn = new p5.FFT();
+  fftOut = new p5.FFT();
+
+  // initialize mic and recorder
+  mic = new p5.AudioIn();
+  recorder = new p5.SoundRecorder();
+  recordedFile = new p5.SoundFile();
+
+  // setup audio chain
+  audioFile.disconnect();
+  fftIn.setInput(audioFile); // set input for spectrum in
+
+  lp_filter.disconnect();
+  waveshaperDistort.disconnect();
+  delay.disconnect();
+  dynamicCompressor.disconnect();
+  reverb.disconnect();
+  masterVol.disconnect();
+
+  // audio -> lowpass -> distortion -> compressor -> reverb -> master volume
+  audioFile.connect(lp_filter);
+  lp_filter.connect(waveshaperDistort);
+  waveshaperDistort.connect(delay);
+  delay.connect(dynamicCompressor);
+  reverb.process(audioFile, 5, 2, false);
+  dynamicCompressor.connect(reverb);
+  reverb.connect(masterVol);
+  masterVol.connect();
+
+  fftOut.setInput(masterVol); // set input for spectrum out
 }
 
 function draw() {
@@ -68,18 +108,9 @@ function draw() {
   setButtonStyle(playButton, audioFile.isPlaying(), '#008000');
   setButtonStyle(loopButton, audioFile.isLooping(), '#8000ff');
   setButtonStyle(pauseButton, audioFile.isPaused(), '#ff8000');
-  setButtonStyle(recordButton, isRecording, '#e34b4b');
-  setButtonStyle(rv_reverseButton, reverbReversed, '#dee6ba');
 
-  // update playtime slider
-  playtime_slider.changed(() => audioFile.jump(playtime_slider.value()));
-  playtime_slider.value(audioFile.currentTime());
-  push();
-  fill(222, 222, 222);
-  rect(670, 790, 70, 20);
-  fill(0);
-  text(getPlaytime(), 675, 805);
-  pop();
+  // update playtime
+  drawPlaytime();
 
   // draw knobs
   knobs.forEach((knob) => knob.draw());
@@ -88,25 +119,30 @@ function draw() {
   drawSpectrums();
 }
 
-// setup the buttons and sliders
 function setupGUI() {
   // ========== PLAYBACK CONTROL BUTTONS ========== //
   let posX = 20,
-    posY = 20;
+    posY = 12,
+    gap = 80;
 
-  pauseButton = setupButton('pause', posX, posY, pauseAudio);
-  playButton = setupButton('play', (posX += 70), posY, playAudio);
-  stopButton = setupButton('stop', (posX += 70), posY, stopAudio);
-  skipStartButton = setupButton('skip to start', (posX += 70), posY, restartAudio);
-  skipEndButton = setupButton('skip to end', (posX += 70), posY, toAudioEnd);
-  loopButton = setupButton('loop', (posX += 70), posY, loopAudio);
-  recordButton = setupButton('record', (posX += 70), posY, recordSound);
-  // TODO mic button
-  mic = setupButton('mic', (posX += 70), posY, () => {});
+  playButton = setupButton('Play', posX, posY, playAudio);
+  pauseButton = setupButton('Pause', (posX += gap), posY, pauseAudio);
+  stopButton = setupButton('Stop', (posX += gap), posY, stopAudio);
+  skipStartButton = setupButton('Skip to start', (posX += gap), posY, restartAudio);
+  skipEndButton = setupButton('Skip to end', (posX += gap), posY, toAudioEnd);
+  loopButton = setupButton('Loop', (posX += gap), posY, loopAudio);
+  recordButton = setupButton('Record', (posX += gap), posY, toggleRecord);
+  micButton = setupButton('Mic', (posX += gap), posY, toggleMic);
+
+  // ================ PLAYTIME ================ //
+  playtime_slider = createSlider(0, audioFile.duration(), 0, 0.1);
+  playtime_slider.position(12, 65);
+  playtime_slider.addClass('playback');
 
   // ========== FILTER SELECTION ========== //
   filterSelection = createSelect();
-  filterSelection.position(10, 75);
+  filterSelection.position(65, 135);
+  filterSelection.addClass('filterDropdown');
   filterSelection.option('lowpass');
   filterSelection.option('highpass');
   filterSelection.option('bandpass');
@@ -115,62 +151,59 @@ function setupGUI() {
   filterSelection.changed(() => lp_filter.setType(filterSelection.value()));
 
   //  ========= FILTER CONTROLS ========= //
-  drawBox(15, 90, 190, 300, 'Filter');
+  drawBox(15, 100, 190, 330, 'Filter');
 
-  lp_cutoff_knob = new Knob(60, 180, 25, 20, 20000, 20, 'cutoff\nfrequency');
-  lp_resonance_knob = new Knob(150, 180, 25, 0, 20, 10, 'resonance');
-  lp_drywet_slider = drawSlider(0, 300, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  lp_output_slider = drawSlider(90, 300, 120, 0, 1, 0.5, 0.01, 'output\nlevel');
+  lp_cutoff_knob = new Knob(60, 230, 25, 20, 20000, 20, 'cutoff\nfrequency');
+  lp_resonance_knob = new Knob(150, 230, 25, 0, 20, 10, 'resonance');
+  lp_drywet_slider = drawSlider(0, 350, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  lp_output_slider = drawSlider(90, 350, 120, 0, 1, 0.5, 0.01, 'output level');
 
   // ========== DYNAMIC COMPRESSOR CONTROLS ========== //
-  drawBox(230, 90, 250, 400, 'dynamic compressor');
+  drawBox(220, 100, 250, 400, 'Dynamic Compressor');
 
-  dc_attack_knob = new Knob(270, 180, 25, 0, 1, 0.003, 'attack');
-  dc_knee_knob = new Knob(350, 180, 25, 0, 40, 30, 'knee');
-  dc_release_knob = new Knob(430, 180, 25, 0.01, 1, 0.25, 'release');
-  dc_ratio_knob = new Knob(310, 260, 25, 1, 20, 12, 'ratio');
-  dc_threshold_knob = new Knob(390, 260, 25, -100, 0, -24, 'threshold');
-  dc_drywet_slider = drawSlider(250, 390, 120, 0, 1, 0.5, 0.01, 'dry/wet');
-  dc_output_slider = drawSlider(330, 390, 120, 0, 1, 0.5, 0.01, 'output\nlevel');
+  dc_attack_knob = new Knob(260, 190, 25, 0, 1, 0.003, 'attack');
+  dc_knee_knob = new Knob(340, 190, 25, 0, 40, 30, 'knee');
+  dc_release_knob = new Knob(420, 190, 25, 0.01, 1, 0.25, 'release');
+  dc_ratio_knob = new Knob(300, 270, 25, 1, 20, 12, 'ratio');
+  dc_threshold_knob = new Knob(390, 270, 25, -100, 0, -24, 'threshold');
+  dc_drywet_slider = drawSlider(240, 400, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  dc_output_slider = drawSlider(330, 400, 120, 0, 1, 0.5, 0.01, 'output level');
 
   // ============= MASTER VOLUME ============= //
-  drawBox(500, 90, 150, 200, 'master\nvolume');
+  drawBox(500, 100, 150, 240, 'Master Volume');
 
-  masterVol_slider = drawSlider(510, 200, 120, 0, 1, 0.5, 0.1, ' ');
+  masterVol_slider = drawSlider(490, 230, 170, 0, 1, 0.5, 0.1, ' ');
 
   // ============= DELAY ============= //
-  drawBox(500, 320, 220, 130, 'delay');
+  drawBox(480, 360, 220, 140, 'Delay');
 
-  delay_time_knob = new Knob(550, 400, 25, 0, 1, 0.5, 'time');
-  delay_feedback_knob = new Knob(670, 400, 25, 0, 1, 0.5, 'feedback');
+  delay_time_knob = new Knob(540, 450, 25, 0, 1, 0, 'time');
+  delay_feedback_knob = new Knob(640, 450, 25, 0, 0.9, 0.5, 'feedback');
 
   // ================ REVERB CONTROLS ================ //
-  drawBox(15, 410, 190, 370, 'reverb');
+  drawBox(15, 440, 190, 370, 'Reverb');
 
-  rv_duration_knob = new Knob(60, 500, 25, 0, 10, 3, 'duration');
-  rv_decay_knob = new Knob(150, 500, 25, 0, 100, 2, 'decay');
+  rv_duration_knob = new Knob(60, 530, 25, 0, 10, 3, 'duration');
+  rv_decay_knob = new Knob(150, 530, 25, 0, 100, 2, 'decay');
 
-  rv_reverseButton = setupButton('reverse', 30, 550, toggleReverse);
+  rv_reverseButton = setupButton('reverse', 30, 580, toggleReverse);
+  rv_reverseButton.size(150, 35);
+  rv_reverseButton.style('border', '1px solid #000000');
 
-  rv_drywet_slider = drawSlider(10, 690, 100, 0, 1, 0.5, 0.01, 'dry/wet');
-  rv_output_slider = drawSlider(100, 690, 100, 0, 1, 0.5, 0.01, 'output\nlevel');
+  rv_drywet_slider = drawSlider(0, 710, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  rv_output_slider = drawSlider(90, 710, 120, 0, 1, 0.5, 0.01, 'output level');
 
   // ======== WAVESHAPER DISTORTION CONTROLS ======== //
-  drawBox(230, 500, 220, 280, 'waveshaper distortion');
+  drawBox(220, 510, 220, 300, 'Waveshaper Distortion');
 
-  wd_amount_knob = new Knob(300, 590, 25, 0, 1, 0, 'distortion\namount');
-  wd_oversample_knob = new Knob(390, 590, 25, 0, 3, 0, 'oversample');
-  wd_drywet_slider = drawSlider(250, 710, 100, 0, 1, 0.5, 0.01, 'dry/wet');
-  wd_outputSlider = drawSlider(340, 710, 100, 0, 1, 0.5, 0.01, 'output\nlevel');
+  wd_amount_knob = new Knob(280, 610, 25, 0, 1, 0, 'distortion\namount');
+  wd_oversample_knob = new Knob(380, 610, 25, 0, 3, 0, 'oversample');
+  wd_drywet_slider = drawSlider(220, 720, 120, 0, 1, 0.5, 0.01, 'dry/wet');
+  wd_outputSlider = drawSlider(320, 720, 120, 0, 1, 0.5, 0.01, 'output level');
 
   // ================ SPECTRUM BOXES ================ //
-  drawBox(470, 500, 250, 140, 'spectrum in');
-  drawBox(470, 640, 250, 140, 'spectrum out');
-
-  // ================ PLAYTIME ================ //
-  playtime_slider = createSlider(0, audioFile.duration(), 0, 0.1);
-  playtime_slider.position(12, 790);
-  playtime_slider.addClass('playback');
+  drawBox(460, 520, 250, 140, 'Spectrum in');
+  drawBox(460, 670, 250, 140, 'Spectrum out');
 
   // add created knobs to array
   knobs.push(
@@ -194,16 +227,10 @@ function setupGUI() {
 function setupButton(name, posX, posY, onPress) {
   var button = createButton(name);
 
-  button.size(60, 50);
-  button.style('background-color', '#ffffff');
-  button.style('border-width', '1px');
-  button.style('color', '#000000');
-  button.style('font-size', '14px');
-  button.style('font-family', 'courier-new');
-  button.style('padding', '0px 12px 0px 12px');
-  button.style('cursor', 'pointer');
-
+  button.size(70, 40);
   button.position(posX, posY);
+  button.style('background-color', '#ffffff');
+  button.addClass('button');
   button.mousePressed(onPress);
 
   return button;
@@ -218,13 +245,22 @@ function setButtonStyle(button, isActive, activeCol) {
 
 /** function to draw rectangle box with header text */
 function drawBox(posX, posY, width, height, header) {
-  rect(posX, posY, width, height);
-
   push();
+  fill(234, 222, 252);
+  strokeWeight(2);
+  stroke(166, 151, 189);
+  rect(posX, posY, width, height, 10);
+
+  if (!header.includes('Spectrum')) {
+    fill(217, 200, 247);
+    rect(posX, posY, width, 30, 10, 10, 0, 0);
+  }
+
+  noStroke();
+  textSize(15);
+  textStyle(BOLD);
   fill(0);
-  textFont('Verdana');
-  textSize(16);
-  header.includes('spectrum') ? textAlign(LEFT, TOP) : textAlign(CENTER, TOP);
+  header.includes('Spectrum') ? textAlign(LEFT, TOP) : textAlign(CENTER, TOP);
   text(header, posX + width / 2, posY + 8);
   pop();
 }
@@ -233,9 +269,8 @@ function drawBox(posX, posY, width, height, header) {
 function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
   let slider = createSlider(minVal, maxVal, value, step);
   slider.position(posX, posY);
-  slider.style('transform', 'rotate(-90deg)');
   slider.style('width', width + 'px');
-  slider.addClass('mySliders');
+  slider.addClass('slider');
 
   push();
   fill(0);
@@ -247,61 +282,6 @@ function drawSlider(posX, posY, width, minVal, maxVal, value, step, label) {
   pop();
 
   return slider;
-}
-
-function getPlaytime() {
-  let total = audioFile.duration();
-  let current = audioFile.currentTime();
-
-  // to minutes and seconds
-  total = floor(total / 60) + ':' + floor(total % 60);
-  current = floor(current / 60) + ':' + floor(current % 60);
-
-  return current + ' / ' + total;
-}
-
-/** function to initialise audio effects and connect audio chain  */
-function setupAudioChain() {
-  // initialize audio effects
-  lp_filter = new p5.Filter();
-  waveshaperDistort = new p5.Distortion();
-  dynamicCompressor = new p5.Compressor();
-  reverb = new p5.Reverb();
-  masterVol = new p5.Gain();
-  delay = new p5.Delay();
-
-  // initialize spectrums
-  fftIn = new p5.FFT();
-  fftOut = new p5.FFT();
-
-  // initialize mic and recorder
-  mic = new p5.AudioIn();
-  recorder = new p5.SoundRecorder();
-  recordedFile = new p5.SoundFile();
-
-  // create audio chain:
-  //  audio -> lowpass -> distortion -> compressor -> reverb -> master volume
-  audioFile.disconnect();
-  fftIn.setInput(audioFile);
-
-  lp_filter.disconnect();
-  waveshaperDistort.disconnect();
-  delay.disconnect();
-  dynamicCompressor.disconnect();
-  reverb.disconnect();
-  masterVol.disconnect();
-
-  // lp_filter.chain(waveshaperDistort, dynamicCompressor, reverb);
-  audioFile.connect(lp_filter);
-  lp_filter.connect(waveshaperDistort);
-  waveshaperDistort.connect(delay);
-  delay.connect(dynamicCompressor);
-  reverb.process(audioFile, 3, 2, false);
-  dynamicCompressor.connect(reverb);
-  reverb.connect(masterVol);
-  masterVol.connect();
-
-  fftOut.setInput(masterVol);
 }
 
 /** function to set parameters for each effect */
@@ -336,8 +316,9 @@ function setEffectParams() {
   dynamicCompressor.amp(dc_output_slider.value());
 
   // reverb
-  // TODO THIS LINE GIVES ERROR WHY
-  // reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue());
+  if (rv_duration_knob.isDragged() || rv_decay_knob.isDragged()) {
+    reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), reverbReversed);
+  }
   reverb.drywet(rv_drywet_slider.value());
   reverb.amp(rv_output_slider.value());
 
@@ -345,20 +326,46 @@ function setEffectParams() {
   masterVol.amp(masterVol_slider.value());
 }
 
+/** function to get current playtime of the track */
+function getPlaytime() {
+  let total = audioFile.duration();
+  let current = audioFile.currentTime();
+
+  // to minutes and seconds
+  total = floor(total / 60) + ':' + floor(total % 60);
+  current = floor(current / 60) + ':' + floor(current % 60);
+
+  return current + ' / ' + total;
+}
+
+/** function to draw playtime */
+function drawPlaytime() {
+  playtime_slider.changed(() => audioFile.jump(playtime_slider.value()));
+  playtime_slider.value(audioFile.currentTime());
+  push();
+  fill(240);
+  noStroke();
+  rect(670, 65, 70, 20, 5);
+  fill(0);
+  text(getPlaytime(), 675, 80);
+  pop();
+}
+
+/** function to draw spectrums in and out */
 function drawSpectrums() {
   // dimensions of spectrum's container
   let boxWidth = 250,
     boxHeight = 140,
-    boxPosX = 470;
+    boxPosX = 460;
 
-  drawBox(boxPosX, 500, boxWidth, boxHeight, 'spectrum in');
-  drawBox(boxPosX, 640, boxWidth, boxHeight, 'spectrum out');
+  drawBox(boxPosX, 520, boxWidth, boxHeight, 'Spectrum in');
+  drawBox(boxPosX, 670, boxWidth, boxHeight, 'Spectrum out');
 
   let spectrumIn = fftIn.analyze();
 
   // spectrum in
   push();
-  translate(boxPosX, 500);
+  translate(boxPosX, 520);
   fill(36, 36, 36);
   noStroke();
   for (let i = 0; i < spectrumIn.length; i++) {
@@ -372,7 +379,7 @@ function drawSpectrums() {
 
   // spectrum out
   push();
-  translate(boxPosX, 640);
+  translate(boxPosX, 670);
   fill(139, 12, 177);
   noStroke();
   for (let i = 0; i < spectrumOut.length; i++) {
@@ -385,17 +392,23 @@ function drawSpectrums() {
 
 /** start playing audio */
 function playAudio() {
-  if (!audioFile.isPlaying()) audioFile.play();
+  if (!audioFile.isPlaying()) {
+    audioFile.play();
+  }
 }
 
 /** pause the audio */
 function pauseAudio() {
-  if (audioFile.isPlaying()) audioFile.pause();
+  if (audioFile.isPlaying()) {
+    audioFile.pause();
+  }
 }
 
 /** stop the audio */
 function stopAudio() {
-  if (audioFile.isPlaying()) audioFile.stop();
+  if (audioFile.isPlaying() || audioFile.isPaused()) {
+    audioFile.stop();
+  }
 }
 
 /** toggle loop on and off */
@@ -412,45 +425,65 @@ function restartAudio() {
   }
 }
 
-/** skip to (3 seconds before) end of audio */
+/** skip to (2 seconds before) end of audio */
 function toAudioEnd() {
   if (audioFile.isPlaying()) {
-    audioFile.jump(audioFile.duration() - 3);
+    audioFile.jump(audioFile.duration() - 2);
   }
 }
 
-/** record the processed signal and save as WAV file */
-function recordSound() {
-  if (!isRecording && audioFile.isPlaying()) {
+/** Toggle recording start and stop */
+function toggleRecord() {
+  if (!audioFile.isPlaying()) return;
+
+  if (!isRecording && audioFile.isPlaying() && recordButton.html() === 'record') {
+    // start recording
     recorder.setInput(masterVol);
     recorder.record(recordedFile);
-    recordButton.html('stop');
+    recordButton.style('background-color', '#e34b4b');
+    recordButton.html('stop record');
     isRecording = true;
   } else if (isRecording) {
+    // stop recording
     recorder.stop();
-    recordButton.html('record');
+    recordButton.style('background-color', '#eba991');
+    recordButton.html('save record');
     isRecording = false;
-
+  } else if (recordButton.html() === 'save record') {
     // save recorded file
     saveSound(recordedFile, 'recording.wav');
+    recordButton.style('background-color', '#ffffff');
+    recordButton.html('record');
+  }
+}
+
+/** Toggle mic on and off */
+function toggleMic() {
+  if (!mic.enabled) {
+    if (audioFile.isPlaying() || audioFile.isPaused()) audioFile.stop();
+
+    // start mic and use it as input
+    mic.start();
+    mic.connect();
+    fftIn.setInput(mic);
+    recorder.setInput(mic);
+    micButton.style('background-color', '#e34b4b');
+    micButton.html('stop mic');
+  } else {
+    // stop mic and set input back to audio file
+    mic.stop();
+    mic.disconnect();
+    fftIn.setInput(masterVol);
+    recorder.setInput(masterVol);
+    micButton.style('background-color', '#ffffff');
+    micButton.html('mic');
   }
 }
 
 function toggleReverse() {
-  let paused = false;
-
-  if (audioFile.isPlaying()) {
-    audioFile.pause();
-    paused = true;
-  }
-
-  audioFile.reverseBuffer();
   reverbReversed = !reverbReversed;
   reverb.set(rv_duration_knob.getValue(), rv_decay_knob.getValue(), reverbReversed);
-
-  if (paused) {
-    audioFile.play();
-  }
+  rv_reverseButton.style('background-color', reverbReversed ? '#dee6ba' : '#ffffff');
 }
 
 function mousePressed() {

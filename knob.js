@@ -61,6 +61,10 @@ class Knob {
     }
   }
 
+  isDragged() {
+    return this.dragging;
+  }
+
   /** draw the knob */
   draw() {
     push();
@@ -73,22 +77,24 @@ class Knob {
       this.value = this.angleToValue(this.angle);
     }
 
-    // draw knob
-    fill(this.dragging ? 175 : 255);
+    // draw knob circle
+    fill(this.dragging ? 200 : 84, 82, 107);
     strokeWeight(1);
+    stroke(183, 162, 219);
     translate(this.posX, this.posY);
     rotate(this.angle);
-    circle(0, 0, this.radius * 2);
+    circle(0, 0, this.radius * 2 + 8);
+
     strokeWeight(3);
-    line(15, 0, this.radius - 1, 0);
+    line(15, 0, this.radius + 3, 0);
     pop();
 
-    // draw knob value
+    // draw current knob value
     push();
-    fill(40, 44, 239);
-    noStroke();
+    fill(196, 190, 235);
     textAlign(CENTER, CENTER);
-    textSize(10);
+    textSize(11);
+    textFont('Courier');
 
     // show decimal if value is between 0.1 and 10
     let valueText =
@@ -96,26 +102,17 @@ class Knob {
         ? this.value.toFixed(1)
         : this.value.toFixed(0);
 
-    text(valueText, this.posX, this.posY + 10);
+    text(valueText, this.posX, this.posY);
     pop();
 
     // draw label above knob
     push();
     fill(0);
-    noStroke();
     textSize(11);
-    textFont('Verdana');
-    textLeading(10);
+    textLeading(13);
+    noStroke();
     textAlign(CENTER, BOTTOM);
     text(this.label, this.posX, this.posY - this.radius - 10);
     pop();
-  }
-
-  /** reset to initial state */
-  reset() {
-    this.value = constrain(this.value, this.minVal, this.maxVal);
-    this.angle = this.valueToAngle(this.value);
-    this.dragging = false;
-    this.offsetAngle = 0;
   }
 }
